@@ -1,0 +1,3 @@
+# Additional dependency for running the test suite (tests/); not required to
+# run the two experiments themselves -- see requirements.txt for that.
+pytest==9.1.1

@@ -13,11 +13,13 @@ Runs the full pipeline and PRINTS measured results:
 
 Deterministic: all randomness is seeded from SEED via numpy.random.default_rng.
 """
+import json
 import os
 import sys
+import urllib.error
+import urllib.request
 
 import numpy as np
-import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -37,18 +39,31 @@ N_FULLRANK = 24            # FAIR-BASELINE adversary: dense full-rank finetune (
 FT_RANK = 16               # low-rank finetune delta (LoRA-style)
 
 
+GATEWAY_BASE = os.environ.get("QSLM_GATEWAY_BASE", "http://127.0.0.1:8000")
+
+
+def is_offline_mode():
+    """RAGTOOLKIT_OFFLINE=1 or --offline skips the gateway probe entirely for a
+    deterministic, network-free run (see README)."""
+    return (os.environ.get("RAGTOOLKIT_OFFLINE", "") not in ("", "0")
+            or "--offline" in sys.argv[1:])
+
+
 def gateway_status():
     """Record (honestly) whether the real gateway is reachable. The QSLM METHOD
     requires white-box reference weights to synthesize the quant family, so the
     controlled embedder is used BY DESIGN, not as a failure fallback."""
     try:
-        r = requests.get("http://127.0.0.1:8000/v1/models", timeout=5)
-        if r.status_code == 200:
-            ids = [m.get("id") for m in r.json().get("data", [])]
-            return f"reachable (models={ids}); NOT used -- method needs white-box weights"
+        req = urllib.request.Request(GATEWAY_BASE + "/v1/models")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            j = json.loads(resp.read().decode("utf-8"))
+        n = len(j.get("data", []))
+        # Never print raw model IDs returned by a local service here -- they may be
+        # internal/non-public deployment codenames that must not end up in a pasted
+        # terminal log or public doc; report only a count.
+        return f"reachable ({n} model(s) available); NOT used -- method needs white-box weights"
     except Exception as e:
         return f"unreachable ({type(e).__name__}); controlled embedder used"
-    return "reachable but unexpected; controlled embedder used"
 
 
 def main():
@@ -58,7 +73,9 @@ def main():
     print("=" * 72)
     print(f"seed={SEED}  probes={N_PROBES}  block_size={BLOCK_SIZE}  subspace_k={K}")
     print(f"embedder source : CONTROLLED (fixed-seed numpy MLP; W_ref = reference weights)")
-    print(f"gateway         : {gateway_status()}")
+    gw_status = ("OFFLINE mode (RAGTOOLKIT_OFFLINE/--offline) -- probe skipped"
+                 if is_offline_mode() else gateway_status())
+    print(f"gateway         : {gw_status}")
     print()
 
     W_ref = make_reference_weights(SEED)

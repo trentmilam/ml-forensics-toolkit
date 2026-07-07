@@ -4,6 +4,20 @@ A **generator-free** method to predict which GraphRAG false-merge will poison
 answers, and to **repair** the graph under a fixed edit budget — by measuring
 *token-budget displacement* instead of graph centrality or dedup confidence.
 
+## Installation / Prerequisites
+
+Tested on Python 3.12. From the repo root:
+
+```
+pip install -r requirements.txt
+python bdapp/run_experiment.py
+```
+
+Section (3) additionally probes a local OpenAI-compatible gateway at `127.0.0.1:8000`
+(informational only — see "Honest scope" below; it never gates the PASS/FAIL verdict).
+Set `RAGTOOLKIT_OFFLINE=1` (or pass `--offline`) to skip the probe entirely for a
+deterministic, network-free run; override the probed URL with `BDAPP_GATEWAY_BASE`.
+
 ## Independent claim (method)
 
 A computer-implemented method for scoring the poisoning risk of a false-merge `M`

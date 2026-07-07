@@ -78,7 +78,7 @@ def n_blocks_for(W, block_size=32):
     return (n + block_size - 1) // block_size
 
 
-def quantize_matrix_bfloat(W, b_float, block_size=32):
+def quantize_matrix_affine(W, b_float, block_size=32):
     """Quantize a matrix to an average (possibly fractional) bit-width b_float
     using a mixed per-block assignment."""
     nb = n_blocks_for(W, block_size)

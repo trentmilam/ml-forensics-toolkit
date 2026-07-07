@@ -20,7 +20,7 @@ random-subspace, low-rank object that fails (ii) and (iii).
 import numpy as np
 
 from embedder import embed
-from quantizer import quantize_matrix_bfloat
+from quantizer import quantize_matrix_affine
 
 
 # ---------------------------------------------------------------- residual stats
@@ -75,8 +75,8 @@ def build_family(W_ref, X, family_bits, block_size, k):
     members = {}
     for b in family_bits:
         Wq = {
-            "W1": quantize_matrix_bfloat(W_ref["W1"], b, block_size),
-            "W2": quantize_matrix_bfloat(W_ref["W2"], b, block_size),
+            "W1": quantize_matrix_affine(W_ref["W1"], b, block_size),
+            "W2": quantize_matrix_affine(W_ref["W2"], b, block_size),
         }
         R = residual_matrix(Wq, W_ref, X, emb_ref=emb_ref)
         members[b] = {
@@ -128,8 +128,8 @@ def invariant_subspace(members, family_bits, k):
 # --------------------------------------------------------------- candidates
 def make_quant_candidate(W_ref, X, b_star, block_size, k, emb_ref):
     Wq = {
-        "W1": quantize_matrix_bfloat(W_ref["W1"], b_star, block_size),
-        "W2": quantize_matrix_bfloat(W_ref["W2"], b_star, block_size),
+        "W1": quantize_matrix_affine(W_ref["W1"], b_star, block_size),
+        "W2": quantize_matrix_affine(W_ref["W2"], b_star, block_size),
     }
     R = residual_matrix(Wq, W_ref, X, emb_ref=emb_ref)
     return {"R": R, "eps": energy(R), "V": top_subspace(R, k),

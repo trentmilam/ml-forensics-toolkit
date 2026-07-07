@@ -1,0 +1,30 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # Deterministic, network-free runs -- see README.md.
+      RAGTOOLKIT_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run pytest
+        run: pytest -q
+
+      - name: Run qslm/run_experiment.py (offline)
+        run: python qslm/run_experiment.py
+
+      - name: Run bdapp/run_experiment.py (offline)
+        run: python bdapp/run_experiment.py

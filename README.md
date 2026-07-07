@@ -10,9 +10,25 @@ survived. This is a **differentiation check — not a legal patentability opinio
 were AI agents, and every result is measured on **controlled / synthetic** setups. Both are built
 and proven with a runnable, measured reduction-to-practice.
 
+## Setup
+
+Tested on Python 3.12. From the repo root:
+
+```
+pip install -r requirements.txt
+```
+
+Then run either experiment below — each is deterministic (fixed seed) and prints a measured
+PASS/FAIL verdict. Both scripts also probe a local OpenAI-compatible gateway at
+`127.0.0.1:8000` by default as an optional, non-gating enrichment; set `RAGTOOLKIT_OFFLINE=1`
+(or pass `--offline`) for a fully network-free run — see [qslm/README.md](qslm/README.md) and
+[bdapp/README.md](bdapp/README.md) for details. `python verify.py` runs both experiments plus
+the test suite (`tests/`, `pip install -r requirements-dev.txt` first) and prints one aggregate
+PASS/FAIL.
+
 ---
 
-## QSLM — quantization-vs-weights typing  (`qslm/`)
+## QSLM — quantization-vs-weights typing  ([qslm/README.md](qslm/README.md))
 
 Decides whether a candidate model differs from a white-box reference because it was **quantized**
 (and recovers the bit-width `b*`) or because its **weights were changed** — even at *identical
@@ -36,7 +52,7 @@ Measured (controlled numpy-embedder validation, fixed seed, exit 0):
 *Scope:* validates the **method** on a numpy MLP with a real per-block k-quant quantizer;
 a real-GGUF model is the documented upgrade path.
 
-## BD-APP — GraphRAG budget-displacement poisoning predictor + repair  (`bdapp/`)
+## BD-APP — GraphRAG budget-displacement poisoning predictor + repair  ([bdapp/README.md](bdapp/README.md))
 
 **Generator-free** prediction of which GraphRAG false-merge will poison answers, driven by
 token-budget **displacement** (not centrality or dedup confidence), plus a displacement-weighted
@@ -67,4 +83,5 @@ Every number above was **observed in real experiment output** (exit 0), not asse
 experiments are deterministic (fixed seed, `numpy.random.default_rng`). "Novelty-vetted" means an
 adversarial **AI-examiner** review — not a patent-office, legal, or third-party assessment — and the
 perfect scores are on **self-authored synthetic corpora**, so treat them as differentiation
-evidence, not external validation. Nothing here is investment, legal, or financial advice. MIT-licensed.
+evidence, not external validation. Nothing here is investment, legal, or financial advice.
+[MIT-licensed](LICENSE).

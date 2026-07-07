@@ -10,7 +10,7 @@ import os
 import urllib.request
 import urllib.error
 
-BASE = "http://127.0.0.1:8000"
+BASE = os.environ.get("BDAPP_GATEWAY_BASE", "http://127.0.0.1:8000")
 # Some local OpenAI-compatible gateways expose a custom, non-standard field for selecting an
 # inference profile/persona. Not part of the OpenAI API -- override to match your own gateway.
 PROFILE_FIELD = os.environ.get("BDAPP_GATEWAY_PROFILE_FIELD", "profile")

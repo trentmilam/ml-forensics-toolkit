@@ -1,0 +1,2 @@
+# Tested with Python 3.12 (see README.md).
+numpy==2.5.0

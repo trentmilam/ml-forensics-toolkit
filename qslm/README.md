@@ -5,6 +5,21 @@ because it was **quantized** (and if so recovers the bit-width `b*`) or because 
 **weights were changed** (finetune / edit) — even when the two changes have the
 **same residual magnitude**, the case where every magnitude/energy test provably fails.
 
+## Installation / Prerequisites
+
+Tested on Python 3.12. From the repo root:
+
+```
+pip install -r requirements.txt
+python qslm/run_experiment.py
+```
+
+`run_experiment.py` also pings a local OpenAI-compatible gateway at `127.0.0.1:8000`
+for an informational status line only — the method never uses it (see "What is
+controlled vs real" below). Set `RAGTOOLKIT_OFFLINE=1` (or pass `--offline`) to skip
+that probe entirely for a deterministic, network-free run; override the probed URL
+with `QSLM_GATEWAY_BASE`.
+
 ## Independent claim (method)
 
 A method for typing a candidate model relative to a white-box reference model, comprising:
