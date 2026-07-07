@@ -1,4 +1,4 @@
-# rag-toolkit — two research-prototype ML methods
+# ml-forensics-toolkit — two research-prototype ML methods
 
 This repo holds two independent research-prototype methods, each with its own runnable,
 deterministic reduction-to-practice: **QSLM** (model quantization-vs-weights forensics) and

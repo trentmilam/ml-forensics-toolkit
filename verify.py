@@ -1,4 +1,4 @@
-"""Root-level aggregate verifier: runs both rag-toolkit experiments (offline,
+"""Root-level aggregate verifier: runs both ml-forensics-toolkit experiments (offline,
 deterministic, no network) plus the pytest suite, and prints one PASS/FAIL for
 the whole repo.
 
