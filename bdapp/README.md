@@ -1,7 +1,15 @@
 # BD-APP — Budget-Displacement Poisoning Predictor + Displacement-Weighted Repair
 
-A **generator-free** method to predict which GraphRAG false-merge will poison
-answers, and to **repair** the graph under a fixed edit budget — by measuring
+**Status: research prototype**, validated on a controlled synthetic corpus (see "Honest scope"
+below) — not yet run against a production GraphRAG pipeline.
+
+If your GraphRAG pipeline silently merges two different real-world entities into one node,
+BD-APP is for you: it predicts *which* such merges will actually poison an answer — not just
+which ones look risky by graph centrality or dedup confidence — and repairs the graph under a
+fixed edit budget.
+
+In notation: BD-APP is a **generator-free** method to predict which GraphRAG false-merge will
+poison answers, and to **repair** the graph under a fixed edit budget — by measuring
 *token-budget displacement* instead of graph centrality or dedup confidence.
 
 ## Installation / Prerequisites
@@ -18,40 +26,45 @@ Section (3) additionally probes a local OpenAI-compatible gateway at `127.0.0.1:
 Set `RAGTOOLKIT_OFFLINE=1` (or pass `--offline`) to skip the probe entirely for a
 deterministic, network-free run; override the probed URL with `BDAPP_GATEWAY_BASE`.
 
-## Independent claim (method)
+## How it works
 
-A computer-implemented method for scoring the poisoning risk of a false-merge `M`
-in a graph-based retrieval corpus that assembles retrieved chunks into a
-fixed-token-budget context, comprising:
+BD-APP scores the poisoning risk of a false-merge `M` in a graph-based retrieval corpus that
+assembles retrieved chunks into a fixed-token-budget context, in four steps plus a repair pass:
 
-1. for each affected seed `e`, assembling the truncated context **twice** — once
-   with `M` present and once for the counterfactual **split** of `M` — under the
-   seed's fixed token budget;
-2. computing a **displacement** `dtok(e, M)` = the number of on-entity,
-   query-relevant tokens that are present in the split-`M` truncated context but
-   **evicted** in the with-`M` truncated context by foreign content routed
-   through `M`;
-3. computing a deterministic **directional-contradiction proxy** `kappa(e, M)`;
-4. computing a poisoning-risk score
-   **`PR(M) = Σ_e s(e) · r(e→M) · dtok(e, M) · κ(e, M)`**
-   using a query-log-free seeding weight `s(e)` and an expansion-reach weight
-   `r(e→M)` — **without invoking any generative model**; and
-5. **repairing** the corpus by removing the `K` foreign-routing edges of highest
-   per-unit load-bearing displacement (`dtok·κ`) — a displacement-weighted
-   min-cut — within a fixed edit budget `K`.
+**1. Assemble the context twice per affected seed.** For each seed `e` that touches `M`, build
+the truncated context under the seed's fixed token budget once with `M` present, and once for
+the counterfactual **split** of `M`.
 
-**Inventive effect (what the baselines miss):** poisoning damage is driven by
-*budget displacement*, not by where a merge sits in the graph nor by how
-confident a dedup system is about it. A peripheral merge that routes heavy,
-identity-conflated content can evict the load-bearing on-entity chunk and flip
-the answer, while a highly-central merge that routes light content flips nothing.
-`PR` captures this; a centrality baseline **inverts** the true ranking, and a
-dedup-confidence baseline trusts the very identity-conflated edges that do the
-damage.
+**2. Measure displacement.** `dtok(e, M)` is the number of on-entity, query-relevant tokens that
+are present in the split-`M` truncated context but get **evicted** in the with-`M` truncated
+context by foreign content routed through `M`.
+
+**3. Measure contradiction.** A deterministic **directional-contradiction proxy** `kappa(e, M)`
+flags whether the foreign content actually conflicts with the query-relevant answer.
+
+**4. Score poisoning risk** as `PR(M) = Σ_e s(e) · r(e→M) · dtok(e, M) · κ(e, M)`, using a
+query-log-free seeding weight `s(e)` and an expansion-reach weight `r(e→M)` — **without invoking
+any generative model**.
+
+**5. Repair.** Remove the `K` foreign-routing edges with the highest per-unit load-bearing
+displacement (`dtok·κ`) — a displacement-weighted min-cut — within a fixed edit budget `K`.
+
+**Why this beats the obvious baselines:** poisoning damage is driven by *budget displacement*,
+not by where a merge sits in the graph nor by how confident a dedup system is about it. A
+peripheral merge that routes heavy, identity-conflated content can evict the load-bearing
+on-entity chunk and flip the answer, while a highly-central merge that routes light content flips
+nothing. `PR` captures this; a centrality baseline **inverts** the true ranking, and a
+dedup-confidence baseline trusts the very identity-conflated edges that do the damage.
 
 ## Reduction-to-practice (measured, this repo)
 
 Run: `python bdapp/run_experiment.py`
+
+**Sample-size note (applies to every table in this section):** these numbers come from 3
+injected merges over 12 poisoned seeds, with a repair edit budget of `K = 6`. The three-decimal
+precision below (e.g. `AUC = 1.000`, `33.3 %`) is the experiment's raw printed output, not a
+claim of statistical confidence at this sample size — read every number here as directional
+evidence that the effect exists, not a stable estimate of its exact magnitude.
 
 ### (1) Centrality inversion — measured
 
@@ -151,7 +164,11 @@ signal and misranks on it.
   tables above use the deterministic **label-free reader** so the headline numbers
   are reproducible offline and independent of live-model variance. Section (3) of
   the experiment *additionally* closes the loop against the **real** local gateway
-  generator at `temperature=0` and reports a measured head-to-head:
+  generator at `temperature=0` and reports a measured head-to-head. **These numbers
+  are anecdotal to the one gateway/model configuration this was run against on the
+  date below — unlike every other number in this README, they are not a reproducible
+  claim, and a different model or server can (and did, across re-runs) produce a
+  different outcome:**
 
   | integration (same endpoint, same contexts)         | usable value tokens | flip loop |
   |----------------------------------------------------|--------------------:|-----------|

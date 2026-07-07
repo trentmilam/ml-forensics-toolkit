@@ -1,14 +1,27 @@
-# rag-toolkit — original ML methods (novelty-vetted pair)
+# rag-toolkit — two research-prototype ML methods
 
-Two original ML / model-management methods, built as open proof of inventive novelty.
+This repo holds two independent research-prototype methods, each with its own runnable,
+deterministic reduction-to-practice: **QSLM** (model quantization-vs-weights forensics) and
+**BD-APP** (a GraphRAG poisoning predictor and repair). They don't share code, an API, or even
+a problem domain — one is about LLM weight integrity, the other about GraphRAG retrieval
+correctness. They're published together as a two-method portfolio pair, not as a single product;
+each has its own directory and its own README, so read the one you care about and ignore the
+other if it's not relevant to you.
 
-Both survived a rigorous, multi-round **adversarial novelty review by independent AI examiner
-agents**: invent → examine against prior art (Google Patents + arXiv, on the anticipation /
-obviousness / abstract-idea axes) → amend → two independent re-examiners. Across five such rounds
-the yield was deliberately harsh (2 of 5, then 0/10, 0/3, 0/10); only **QSLM** and **BD-APP**
-survived. This is a **differentiation check — not a legal patentability opinion**: the examiners
-were AI agents, and every result is measured on **controlled / synthetic** setups. Both are built
-and proven with a runnable, measured reduction-to-practice.
+- **QSLM** is for anyone who deploys quantized models and needs to know whether an observed model
+  differs from a known-good reference because it was **quantized** (expected) or because its
+  **weights were changed** (a stealth edit) — including the hard case where both changes have the
+  same residual magnitude, where simple magnitude/energy checks can't tell them apart.
+- **BD-APP** is for anyone running a GraphRAG pipeline who has to worry about it silently merging
+  two different real-world entities into one node — it predicts *which* such merges will actually
+  poison an answer (not just which ones look risky by graph centrality or dedup confidence), and
+  repairs the graph under a fixed edit budget.
+
+Both are research prototypes validated on controlled/synthetic data, not production libraries —
+see each method's "scope" section below for exactly what is and isn't shown. Both were informally
+red-teamed against prior art using AI agents before writing this up; that process wasn't recorded
+step by step and isn't presented as a reproducible result, unlike every measured number below,
+which is.
 
 ## Setup
 
@@ -18,13 +31,17 @@ Tested on Python 3.12. From the repo root:
 pip install -r requirements.txt
 ```
 
-Then run either experiment below — each is deterministic (fixed seed) and prints a measured
-PASS/FAIL verdict. Both scripts also probe a local OpenAI-compatible gateway at
+This is all you need to run either experiment below — each is deterministic (fixed seed) and
+prints a measured PASS/FAIL verdict. Both scripts also probe a local OpenAI-compatible gateway at
 `127.0.0.1:8000` by default as an optional, non-gating enrichment; set `RAGTOOLKIT_OFFLINE=1`
 (or pass `--offline`) for a fully network-free run — see [qslm/README.md](qslm/README.md) and
-[bdapp/README.md](bdapp/README.md) for details. `python verify.py` runs both experiments plus
-the test suite (`tests/`, `pip install -r requirements-dev.txt` first) and prints one aggregate
-PASS/FAIL.
+[bdapp/README.md](bdapp/README.md) for details.
+
+`python verify.py` runs both experiments plus the test suite in `tests/` and prints one aggregate
+PASS/FAIL. The test suite needs `pytest`, which is a separate, optional **dev** dependency — install
+it with `pip install -r requirements-dev.txt` first if you want `verify.py` to also run the tests.
+If `pytest` isn't installed, `verify.py` skips the test suite and says so explicitly rather than
+reporting a toolkit failure.
 
 ---
 
@@ -64,11 +81,17 @@ python bdapp/run_experiment.py
 
 Measured (controlled synthetic corpus, fixed seed, exit 0):
 
-| signal | value |
+| signal | value (n≈12 seeds, 3 merges, K=6 — small sample, see note) |
 |---|---|
-| centrality inversion | confirmed — PR ranks the peripheral merge (14.400, 75% real harm) above the central one (0.000, 0% harm); centrality ranks them backwards |
-| calibration AUC | 1.000 |
-| repair @ equal budget K=6 | displacement-cut **33.3% flips / 0.333 precision** vs centrality & dedup both **100% / 0.000** |
+| centrality inversion | confirmed — PR ranks the peripheral merge (14.4, 75% real harm) above the central one (0.0, 0% harm); centrality ranks them backwards |
+| calibration AUC | ~1.0 |
+| repair @ equal budget K=6 | displacement-cut **~33% flips / ~0.33 precision** vs centrality & dedup both **100% / 0.0** |
+
+*Small-sample note:* these are computed over 3 injected merges and ~12 seeds with a K=6 edit
+budget; the numbers above are rounded because three-decimal precision (as printed verbatim by
+`run_experiment.py`, e.g. `33.3%`/`0.333`/`1.000`) isn't statistically meaningful at this sample
+size — treat them as directional evidence of the effect, not stable estimates. See
+[bdapp/README.md](bdapp/README.md) for the exact unrounded output.
 
 *Scope:* synthetic corpus; flip-labels come from a **deterministic, label-free reader (no live LLM
 required)**; the AUC=1.0 is a clean-corpus property measured against an *independent* reader (an
@@ -80,8 +103,9 @@ is a documented upgrade.
 ## Honesty
 
 Every number above was **observed in real experiment output** (exit 0), not asserted; both
-experiments are deterministic (fixed seed, `numpy.random.default_rng`). "Novelty-vetted" means an
-adversarial **AI-examiner** review — not a patent-office, legal, or third-party assessment — and the
-perfect scores are on **self-authored synthetic corpora**, so treat them as differentiation
-evidence, not external validation. Nothing here is investment, legal, or financial advice.
-[MIT-licensed](LICENSE).
+experiments are deterministic (fixed seed, `numpy.random.default_rng`). The "informally
+red-teamed against prior art using AI agents" note above is exactly that — an informal check
+using AI tools, not a formal legal or third-party assessment, and not something this
+repo presents as a reproducible result. The perfect scores are on **self-authored synthetic
+corpora**, so treat them as differentiation evidence, not external validation. Nothing here is
+investment, legal, or financial advice. [MIT-licensed](LICENSE).

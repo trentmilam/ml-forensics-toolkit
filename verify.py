@@ -6,6 +6,7 @@ Usage:
     python verify.py
 """
 from __future__ import annotations
+import importlib.util
 import os
 import subprocess
 import sys
@@ -24,12 +25,26 @@ def main():
 
     ok_qslm = _run([sys.executable, "run_experiment.py"], os.path.join(ROOT, "qslm"), env)
     ok_bdapp = _run([sys.executable, "run_experiment.py"], os.path.join(ROOT, "bdapp"), env)
-    ok_tests = _run([sys.executable, "-m", "pytest", "-q"], ROOT, env)
+
+    # pytest is an optional *dev* dependency (requirements-dev.txt), not required to run
+    # the two experiments above. If it's not installed, skip the test suite explicitly
+    # instead of letting a bare "No module named pytest" traceback read as a toolkit
+    # failure in the final banner.
+    if importlib.util.find_spec("pytest") is not None:
+        ok_tests = _run([sys.executable, "-m", "pytest", "-q"], ROOT, env)
+        tests_line = "PASS" if ok_tests else "FAIL"
+    else:
+        ok_tests = True
+        tests_line = "SKIPPED (pytest not installed -- optional dev dependency; run " \
+                     "`pip install -r requirements-dev.txt` to enable)"
+        print("\npytest not installed -- skipping the test suite (optional dev dependency,")
+        print("not required for the toolkit itself). Install with:")
+        print("    pip install -r requirements-dev.txt")
 
     print("\n" + "=" * 60)
     print(f"qslm/run_experiment.py  : {'PASS' if ok_qslm else 'FAIL'}")
     print(f"bdapp/run_experiment.py : {'PASS' if ok_bdapp else 'FAIL'}")
-    print(f"pytest (tests/)         : {'PASS' if ok_tests else 'FAIL'}")
+    print(f"pytest (tests/)         : {tests_line}")
     all_ok = ok_qslm and ok_bdapp and ok_tests
     print(f"RESULT: {'PASS' if all_ok else 'FAIL'}")
     print("=" * 60)

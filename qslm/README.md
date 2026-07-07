@@ -1,9 +1,18 @@
 # QSLM — Quantization-vs-weights typing via a scheme-locked self-quantization family
 
-QSLM decides whether an observed model `C` differs from a reference model `W_ref`
-because it was **quantized** (and if so recovers the bit-width `b*`) or because its
-**weights were changed** (finetune / edit) — even when the two changes have the
-**same residual magnitude**, the case where every magnitude/energy test provably fails.
+**Status: research prototype.** Validated on a controlled synthetic model (see "What is
+controlled vs real" below); a real GGUF model is documented future work, not something
+demonstrated in this repo today.
+
+If you deploy quantized models and need to know whether an observed model differs from a
+known-good reference because it was **quantized** (expected) or because its **weights were
+changed** (a stealth edit), QSLM is for you — including the hard case where both changes have
+the **same residual magnitude**, where every magnitude/energy test provably fails to tell them
+apart.
+
+In notation: QSLM decides whether an observed model `C` differs from a reference model `W_ref`
+because it was quantized (and if so recovers the bit-width `b*`) or because its weights were
+changed (finetune / edit).
 
 ## Installation / Prerequisites
 
@@ -20,31 +29,33 @@ controlled vs real" below). Set `RAGTOOLKIT_OFFLINE=1` (or pass `--offline`) to 
 that probe entirely for a deterministic, network-free run; override the probed URL
 with `QSLM_GATEWAY_BASE`.
 
-## Independent claim (method)
+## How it works
 
-A method for typing a candidate model relative to a white-box reference model, comprising:
+The method types a candidate model `C` relative to a white-box reference model `W_ref` in
+three stages:
 
-1. **synthesizing a scheme-locked self-quantization family** `{Q_b(W_ref)}` by applying,
-   to the reference weights, the same block-wise affine (k-quant-style) quantizer at a
-   plurality of bit-widths `b`, and embedding a fixed probe set with the reference and
-   with each family member to obtain per-member residuals `r_b = emb(Q_b) − emb(ref)`;
-2. **deriving three scheme-locked signatures** from the family: (a) an **energy-vs-bit
-   curve** `eps(b)`; (b) a **cross-bit invariant residual subspace `U`** — the residual
-   directions that are consistent across bit-widths, obtained from the top eigenvectors of
-   the scale-normalized mean residual covariance; and (c) an **empirical residual null**
-   over a same-scheme residual statistic (the effective rank of the residual matrix);
-3. **typing a candidate** by its residual to the reference as *quantized* iff (i) its
-   residual energy lands on the energy-vs-bit curve at a recoverable `b*`, **and**
-   (ii) the principal-angle overlap of its residual subspace with `U` exceeds a bound
-   calibrated from the family, **and** (iii) its residual effective rank lies in the null
-   band; otherwise typing it as *weight-changed*; and, when quantized, **recovering `b*`**
-   by inverting the energy-vs-bit curve.
+**1. Synthesize a scheme-locked self-quantization family.** Apply, to the reference weights,
+the same block-wise affine (k-quant-style) quantizer at several bit-widths `b`, giving a family
+`{Q_b(W_ref)}`. Embed a fixed probe set with the reference and with each family member to get
+per-member residuals `r_b = emb(Q_b) − emb(ref)`.
 
-The inventive step over a magnitude/energy test: quantization error is **dense and
+**2. Derive three scheme-locked signatures from that family:** (a) an **energy-vs-bit curve**
+`eps(b)`; (b) a **cross-bit invariant residual subspace `U`** — the residual directions that stay
+consistent across bit-widths, taken from the top eigenvectors of the scale-normalized mean
+residual covariance; and (c) an **empirical residual null** over a same-scheme residual statistic
+(the effective rank of the residual matrix).
+
+**3. Type the candidate.** `C` is typed as *quantized* only if all three hold: (i) its residual
+energy lands on the energy-vs-bit curve at a recoverable `b*`, (ii) the principal-angle overlap of
+its residual subspace with `U` exceeds a bound calibrated from the family, and (iii) its residual
+effective rank lies in the null band. If any of the three fails, `C` is typed as *weight-changed*.
+When `C` is typed as quantized, `b*` is recovered by inverting the energy-vs-bit curve.
+
+**Why this beats a plain magnitude/energy test:** quantization error is **dense and
 near-isotropic in weight space**, so — propagated through the fixed network on the fixed
 probes — it consistently excites the network's dominant response subspace `U` and produces
-a high-rank residual; a **naive finetune delta is a random low-rank object**, so even when
-scaled to the identical residual energy it lands in a random subspace and is low-rank, failing
+a high-rank residual. A **naive finetune delta is a random low-rank object**, so even when
+scaled to the identical residual energy it lands in a random subspace and stays low-rank, failing
 (ii) and (iii). Energy alone therefore cannot separate the two; the scheme-locked subspace/rank
 signatures can.
 
