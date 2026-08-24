@@ -1,5 +1,7 @@
 # ml-forensics-toolkit: two research-prototype ML methods
 
+[![verify](https://github.com/trentmilam/ml-forensics-toolkit/actions/workflows/verify.yml/badge.svg)](https://github.com/trentmilam/ml-forensics-toolkit/actions/workflows/verify.yml)
+
 This repo holds two small research experiments about catching problems in machine learning
 systems. **QSLM** looks at a model's weights and tries to tell whether they were compressed as
 expected or secretly altered. **BD-APP** looks at a retrieval system built on a knowledge graph
