@@ -107,7 +107,7 @@ is a documented upgrade.
 
 ---
 
-## Honesty
+## Notes
 
 Every number above was observed in real experiment output (exit 0), not asserted; both
 experiments are deterministic (fixed seed, `numpy.random.default_rng`). The "informally checked

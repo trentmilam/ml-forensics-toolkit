@@ -5,7 +5,7 @@ fixed-seed pipeline run_experiment.py prints, asserting the concrete numbers the
 README claims as measured (accuracy, subspace/rank AUC, energy-baseline chance).
 
 method.py is loaded via importlib under a unique module name ("qslm_method")
-rather than a bare `import method` -- bdapp/method.py has the same filename, and
+rather than a bare `import method`, because bdapp/method.py has the same filename, and
 both test modules load in the same pytest process, so a bare import would risk
 one package's tests silently picking up the other package's module from the
 shared sys.modules cache.
@@ -89,7 +89,7 @@ def test_tri_condition_accuracy_and_aucs():
     acc = float(np.mean(preds == labels))
     auc_overlap = M.auc(overlaps, labels)
     auc_erank = M.auc(eranks, labels)
-    auc_energy = M.auc(energies, labels)  # magnitude-only baseline -- must be ~chance
+    auc_energy = M.auc(energies, labels)  # magnitude-only baseline: must be ~chance
     false_positives = int(np.sum((labels == 0) & (preds == 1)))
 
     assert acc > 0.85, f"accuracy {acc} not > 0.85"

@@ -7,7 +7,7 @@ the calibration AUC, the displacement-repair win, and the mixed-source-flip
 invariant under a flaky gateway.
 
 method.py is loaded via importlib under a unique module name ("bdapp_method")
-rather than a bare `import method` -- qslm/method.py has the same filename, and
+rather than a bare `import method`, because qslm/method.py has the same filename, and
 both test modules load in the same pytest process, so a bare import would risk
 one package's tests silently picking up the other package's module from the
 shared sys.modules cache.
@@ -46,7 +46,7 @@ MERGES = ["M_peripheral", "M_central", "M_distract"]
 
 
 def _label_free_labeler(corpus):
-    """The deterministic label-free reader -- gw=None never touches the network."""
+    """The deterministic label-free reader: gw=None never touches the network."""
     return FlipLabeler(corpus, gw=None, model=None, max_calls=40)
 
 
@@ -126,7 +126,7 @@ def test_displacement_repair_beats_centrality_and_dedup():
 
 def test_redcase_no_mixed_source_flip_on_flaky_gateway():
     """A gateway that answers once then trips mid-pair must never emit a
-    cross-source ('mixed') comparison -- an in-process fake gateway, offline."""
+    cross-source ('mixed') comparison. This uses an in-process fake gateway, offline."""
     class FlakyGW:
         def __init__(self):
             self.n = 0

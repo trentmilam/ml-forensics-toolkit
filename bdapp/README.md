@@ -1,7 +1,7 @@
 # BD-APP: budget-displacement poisoning predictor and repair
 
-**Status: research prototype**, validated on a controlled synthetic corpus (see "Honest scope"
-below), not yet run against a production GraphRAG pipeline.
+**Status: research prototype**, validated on a controlled synthetic corpus (see "Scope and
+limitations" below), not yet run against a production GraphRAG pipeline.
 
 GraphRAG systems answer questions by first organizing source documents into a knowledge graph,
 then retrieving from it. A common failure mode is an entity-merge: the system wrongly collapses
@@ -25,7 +25,7 @@ python bdapp/run_experiment.py
 ```
 
 Section (3) additionally probes a local OpenAI-compatible gateway at `127.0.0.1:8000`
-(informational only, see "Honest scope" below; it never gates the PASS/FAIL verdict).
+(informational only, see "Scope and limitations" below; it never gates the PASS/FAIL verdict).
 Set `RAGTOOLKIT_OFFLINE=1` (or pass `--offline`) to skip the probe entirely for a
 deterministic, network-free run; override the probed URL with `BDAPP_GATEWAY_BASE`.
 
@@ -102,7 +102,7 @@ Isotonic (PAVA) fit over 20 capped (query, M) cases: `P(flip | d=0) = 0.000`,
 `d = 1.600` for flipped vs `0.000` for non-flipped.
 
 The perfect separation is a property of this controlled corpus, not of the labelling: the
-ground-truth reader is now independent of the predictor (see Honest scope). On a real corpus,
+ground-truth reader is now independent of the predictor (see "Scope and limitations"). On a real corpus,
 out-of-threat-model flips (e.g. corroboration-stripping that lets a higher-relevance poison win
 a co-location vote, a case `dtok` scores 0) would pull the AUC below 1.
 
@@ -124,7 +124,7 @@ edges, which are the off-attribute distractors, because the identity-conflated p
 higher dedup confidence than the distractors it is measured against. Neither baseline is
 handicapped; each is given its genuine signal and misranks on it.
 
-## Honest scope
+## Scope and limitations
 
 - Controlled synthetic corpus: the corpus, budgets, merges, and foreign chunks are constructed
   to exhibit the budget-displacement / centrality-inversion regime. The numbers above are
@@ -172,7 +172,7 @@ handicapped; each is given its genuine signal and misranks on it.
   the configured chat model is a thinking model whose default persona spends its whole token
   budget on hidden reasoning and returns empty content, which the loop correctly treats as a
   non-answer. Selecting the thinking-off profile closes the loop. The real model agrees with the
-  label-free oracle on 5 / 6 batch pairs. The one disagreement is honest and instructive: on
+  label-free oracle on 5 / 6 batch pairs. The one disagreement is instructive: on
   `M_central` seed 1 the real model flips on a co-located contradiction (`dtok = 0`, `κ = 1`, the
   correct value is corroborated but not evicted) that the budget-displacement predictor does not
   flag. That is a live instance of the documented co-location / corroboration blind spot (see

@@ -4,7 +4,7 @@ Preferred path: ask a REAL generator on the local gateway the SAME question over
 the with-M context vs the split-M context and compare the parsed values.
 
 Fallback path: a deterministic, LABEL-FREE answer-oracle f(context).  It reads
-ONLY observable features of the assembled context -- it never consults the hidden
+ONLY observable features of the assembled context; it never consults the hidden
 `authentic` flag or the true native value.  It models a self-consistent reader:
 among the status chunks that name the seed, it returns the value with the most
 support (plurality of chunks asserting it), breaking ties toward the higher
@@ -13,7 +13,7 @@ retrieval-relevance value.  If no status chunk names the seed, it answers
 
 A flip is: correct value under split-M, but a *different, definite* value under
 with-M.  Whether that happens is decided by the vote among whatever survives the
-budget -- an event computed independently of the predictor's dtok/kappa.  The
+budget, an event computed independently of the predictor's dtok/kappa.  The
 predictor is therefore tested against a ground truth it does not itself define.
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ from corpus import Corpus, STATUS
 def oracle_answer(corpus: Corpus, seed: int, ctx: list) -> str:
     """Label-free plurality reader over the assembled context.
 
-    Uses only tokens/relevance of the present chunks -- never the `authentic`
+    Uses only tokens/relevance of the present chunks, never the `authentic`
     flag nor corpus.native[seed].value.
     """
     votes = {}
@@ -49,7 +49,7 @@ def _gen_answer(corpus, seed, ctx, gw, model, profile=None):
 
     Strict grammar: the parsed answer is one of {v<digits>, "unknown"}. Anything
     else (prose, hedging) is treated as an abstain ("unknown") rather than being
-    coerced into a definite value -- coercing arbitrary prose into a value token
+    coerced into a definite value: coercing arbitrary prose into a value token
     is a fail-open that would inflate the measured flip rate.
     """
     prompt = (
@@ -114,7 +114,7 @@ class FlipLabeler:
         if s1 != s2:
             # Gateway tripped BETWEEN the two answers (a_split real, a_with fell
             # back). Comparing a real-model token against an oracle plurality
-            # vote is a meaningless cross-source label -- never emit it. Discard
+            # vote is a meaningless cross-source label. Never emit it. Discard
             # the real answer and re-label the pair from the single committed
             # fallback oracle so both contexts share one source. (The only
             # possible mismatch is real->oracle: once the circuit trips it stays

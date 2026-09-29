@@ -10,7 +10,7 @@ in the counterfactual split-M truncated context but EVICTED, in the with-M
 truncated context, by foreign content routed through M under a fixed token budget,
 and kappa(e,M) is a deterministic directional-contradiction proxy.  The score is
 obtained by running the assembler TWICE per affected seed (with-M vs split-M) and
-diffing the two truncated contexts -- no model call is required.
+diffing the two truncated contexts. No model call is required.
 """
 from __future__ import annotations
 from collections import deque
@@ -70,7 +70,7 @@ def on_entity_relevant_tokens(corpus: Corpus, seed: int) -> set:
 
 
 # ---------------------------------------------------------------------------
-# displacement dtok(e, M)  --  generator-free, by diffing two contexts
+# displacement dtok(e, M): generator-free, by diffing two contexts
 # ---------------------------------------------------------------------------
 def dtok(corpus: Corpus, seed: int, merge: str, base_active) -> int:
     """Query-relevant on-entity tokens present under split-M but evicted with-M."""
@@ -89,7 +89,7 @@ def dtok(corpus: Corpus, seed: int, merge: str, base_active) -> int:
 
 
 # ---------------------------------------------------------------------------
-# kappa(e, M)  --  directional contradiction proxy (lexical fallback)
+# kappa(e, M): directional contradiction proxy (lexical fallback)
 # ---------------------------------------------------------------------------
 def kappa_lexical(corpus: Corpus, seed: int, merge: str) -> float:
     """1.0 if a foreign chunk of M asserts a DIFFERENT value for the SAME

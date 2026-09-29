@@ -12,7 +12,7 @@ import urllib.error
 
 BASE = os.environ.get("BDAPP_GATEWAY_BASE", "http://127.0.0.1:8000")
 # Some local OpenAI-compatible gateways expose a custom, non-standard field for selecting an
-# inference profile/persona. Not part of the OpenAI API -- override to match your own gateway.
+# inference profile/persona. Not part of the OpenAI API. Override to match your own gateway.
 PROFILE_FIELD = os.environ.get("BDAPP_GATEWAY_PROFILE_FIELD", "profile")
 
 
@@ -39,14 +39,14 @@ def chat(model: str, prompt: str, timeout: float = 15.0, max_tokens: int = 24,
          profile: str | None = None):
     """Return the assistant text, or None on ANY failure.
 
-    `profile` is sent under PROFILE_FIELD -- a custom extension some local
+    `profile` is sent under PROFILE_FIELD, a custom extension some local
     OpenAI-compatible gateways expose for persona/sampler selection. A
     thinking-enabled model under its default persona may spend its whole token
     budget on hidden reasoning and return EMPTY assistant content; if that
     happens with your gateway, select a thinking-off profile via `profile=` to
     get a usable answer. An empty/whitespace content is treated as a non-answer
-    (returns None) so the fail-safe fallback path is entered honestly rather
-    than on a blank string.
+    (returns None) so the fail-safe fallback path is triggered cleanly, not by
+    a lingering blank string.
     """
     try:
         payload = {

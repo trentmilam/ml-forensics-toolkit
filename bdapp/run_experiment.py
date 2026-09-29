@@ -26,7 +26,7 @@ from oracle import FlipLabeler, oracle_answer, _gen_answer
 
 SEED = 20260703
 # Live gateway model preference + thinking-off profile name are environment-configurable so this
-# script carries no hardcoded reference to any particular deployment's model ids -- set
+# script carries no hardcoded reference to any particular deployment's model ids. Set
 # BDAPP_CHAT_MODELS (comma-separated) to match your own gateway; an empty preference falls back to
 # trying every model /v1/models returns (see probe_gateway below), so this is safe to leave unset.
 CHAT_MODEL_PREF = [m for m in os.environ.get("BDAPP_CHAT_MODELS", "").split(",") if m]
@@ -45,7 +45,7 @@ BAR = "=" * 70
 def redcase_no_mixed_source_flip(corpus):
     """RED (mixed-source flip invariant): a gateway that answers the FIRST
     context of a flip() then trips before the SECOND must never emit a
-    cross-source ("mixed") comparison -- a real-model token compared against an
+    cross-source ("mixed") comparison: a real-model token compared against an
     oracle plurality vote is a meaningless label. The pair must be single-source.
 
     Uses a flaky in-process fake gateway (offline, deterministic): success once,
@@ -93,15 +93,15 @@ def real_llm_ab(corpus, chat_model):
     """Close the real-LLM loop with a MEASURED head-to-head against the naive
     integration a competent engineer would try first.
 
-    NAIVE (incumbent): call the OpenAI-compatible endpoint the obvious way --
+    NAIVE (incumbent): call the OpenAI-compatible endpoint the obvious way:
     default persona (thinking on), tight token budget (max_tokens=6). This is
     exactly what the original probe did. On a thinking model it returns EMPTY
     content, so 0 usable value tokens are produced and the flip loop silently
     falls back to the oracle (generator_source=fallback-oracle despite a live
-    gateway) -- the defect this fix removes.
+    gateway). That is the defect this fix removes.
 
     CORRECTED: request the thinking-off profile (CHAT_PROFILE) with a small
-    budget -> clean single value tokens -> the loop closes with
+    budget, which yields clean single value tokens, so the loop closes with
     generator_source=real-gateway.
 
     Returns a dict of MEASURED datapoints.
@@ -180,7 +180,7 @@ def main():
         print("[gateway] OFFLINE mode (RAGTOOLKIT_OFFLINE/--offline) -- probe skipped")
     else:
         models, chat_model, chat_ok, emb_ok = probe_gateway()
-        # Never print raw model IDs returned by a local service here -- `models` may
+        # Never print raw model IDs returned by a local service here: `models` may
         # contain internal/non-public deployment codenames that must not end up in a
         # pasted terminal log or public doc; report only a count + booleans.
         print(f"[gateway] models_available={len(models) if models else 0}  "
@@ -321,7 +321,7 @@ def main():
     print("\n" + BAR)
     print("(3) REAL-LLM LOOP  --  naive gateway call vs thinking-off (INFORMATIONAL)")
     print(BAR)
-    # This section is purely DIAGNOSTIC and never gates RESULT: PASS/FAIL below -- a
+    # This section is purely DIAGNOSTIC and never gates RESULT: PASS/FAIL below. A
     # live gateway's answer quality is not a deterministic property of this repo's
     # method, so making the exit code depend on it would make the suite non-
     # reproducible (it previously required corr_usable > naive_usable, which a fully

@@ -27,7 +27,7 @@ python qslm/run_experiment.py
 ```
 
 `run_experiment.py` also pings a local OpenAI-compatible gateway at `127.0.0.1:8000`
-for an informational status line only — the method never uses it (see "What is
+for an informational status line only. The method never uses it (see "What is
 controlled vs real" below). Set `RAGTOOLKIT_OFFLINE=1` (or pass `--offline`) to skip
 that probe entirely for a deterministic, network-free run; override the probed URL
 with `QSLM_GATEWAY_BASE`.
@@ -62,7 +62,7 @@ residual energy it lands in a random subspace and stays low-rank, failing condit
 (iii). Energy alone therefore cannot separate the two; the scheme-locked subspace and rank
 signatures can.
 
-Honest boundary: the load-bearing condition is (iii), not (ii). An adaptive adversary who knows
+Boundary: the load-bearing condition is (iii), not (ii). An adaptive adversary who knows
 the method can steer its low-rank delta directly into `U` (a second-layer delta `dW2 = U·M`),
 producing a residual whose subspace overlap with `U` is ~1.0, higher than a real quant member,
 which defeats condition (ii): measured subspace-overlap AUC on this adversary collapses to
@@ -75,7 +75,7 @@ high-effective-rank, because the two adversarial objectives are mutually exclusi
 construction, while dense quantization error satisfies both. Condition (ii) alone is not robust
 to an adaptive adversary; the tri-condition, specifically the rank null, is.
 
-## What is controlled vs real (honest scope)
+## What is controlled vs real
 
 - Controlled (this implementation): the "model" is a fixed-seed numpy MLP (2 layers, hidden 256,
   output 128-d L2-normalized). We own its reference weights, so we can synthesize the full
@@ -129,14 +129,14 @@ subspace `U` (`dW2 = U·M`), each energy-matched to a quant member.
 | AUC, effective rank | 1.000, condition (iii) is the load-bearing defense |
 | tri-condition false positives (U-aligned typed as quant) | 0 / 24 |
 
-This is the honest result: an adversary can beat the subspace test, but the effective-rank null,
+The result: an adversary can beat the subspace test, but the effective-rank null,
 and therefore the tri-condition conjunction, still rejects every U-aligned finetune, because
 U-alignment and high effective rank are mutually exclusive.
 
 ### Fair-baseline head-to-head: smart magnitude-free detectors (measured)
 
 The energy-only baseline above is chance by construction (energies are matched), so beating it
-proves little. The honest question is whether the tri-condition beats the detector a competent
+proves little. The real question is whether the tri-condition beats the detector a competent
 engineer would actually build. Without the scheme-locked family, the two strongest
 magnitude-free signals are a residual effective-rank threshold and a residual
 subspace-overlap-with-`U` threshold, each a reasonable single-signal detector, not a strawman.

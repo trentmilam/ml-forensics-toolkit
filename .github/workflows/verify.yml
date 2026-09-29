@@ -8,7 +8,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      # Deterministic, network-free runs -- see README.md.
+      # Deterministic, network-free runs. See README.md.
       RAGTOOLKIT_OFFLINE: "1"
     steps:
       - uses: actions/checkout@v4

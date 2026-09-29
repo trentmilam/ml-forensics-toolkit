@@ -14,7 +14,7 @@ routing EDGES:
                    budgets it is assembled first and EVICTS the native + its
                    corroborator, so only the wrong value survives.  On a few roomy
                    budgets it co-locates with the correct evidence and is
-                   out-voted -- same merge, flip only where displacement happens.
+                   out-voted: same merge, flip only where displacement happens.
   * M_central    : anchored/seeded at HIGH-centrality (hub) entities, but its
                    edges route a LIGHT contradictory chunk that fits WITHOUT
                    evicting the native+corroborator, so the correct value keeps
@@ -26,7 +26,7 @@ routing EDGES:
                    displacement-only signal from the contradiction signal.
 
 Ground truth is produced by a label-free plurality reader (see oracle.py); the
-`authentic` flag below is NEVER read by the reader -- it is used only for the
+`authentic` flag below is NEVER read by the reader; it is used only for the
 on-entity-precision metric in repair.py.  Everything is deterministic given SEED.
 """
 from __future__ import annotations

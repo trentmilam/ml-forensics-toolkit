@@ -169,16 +169,17 @@ def make_finetune_candidate(W_ref, X, target_eps, rank, rng, block_size, k, emb_
 def make_ualigned_finetune_candidate(W_ref, X, target_eps, U, rng, block_size, k,
                                      emb_ref):
     """HARD (adaptive) adversary: a low-rank finetune delta STEERED so its embedding-space
-    residual lands in the method's OWN cross-bit invariant subspace U -- defeating the
+    residual lands in the method's OWN cross-bit invariant subspace U, defeating the
     subspace-overlap condition (ii) that a naive random-delta finetune fails.
 
     Construction: a second-layer delta dW2 = U @ M0 forces the delta's output rows into
     span(U); propagated through the fixed network on the fixed probes the residual therefore
     aligns with U (measured overlap ~1.0, i.e. HIGHER than a real quant member). The delta is
-    energy-matched to target_eps exactly like the random finetune. This is the honest attack
-    on non-obviousness: it targets the invariant subspace directly. Its structural weakness --
-    and why the tri-condition survives -- is that U is only k-dimensional, so confining the
-    residual to span(U) caps its effective rank at k, so it cannot also satisfy (iii).
+    energy-matched to target_eps exactly like the random finetune. This is the substantive
+    attack on non-obviousness: it targets the invariant subspace directly. Its structural
+    weakness (and why the tri-condition survives) is that U is only k-dimensional, so
+    confining the residual to span(U) caps its effective rank at k, so it cannot also
+    satisfy (iii).
     """
     d_hidden = W_ref["W2"].shape[1]
     M0 = rng.standard_normal((U.shape[1], d_hidden))

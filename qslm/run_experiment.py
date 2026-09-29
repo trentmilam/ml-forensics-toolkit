@@ -9,7 +9,7 @@ Runs the full pipeline and PRINTS measured results:
   - types every candidate with the tri-condition classifier and recovers b*
   - reports: confusion matrix, tri-condition AUC (subspace + effective-rank),
     b* recovery error, and the BASELINE energy-only AUC (must be ~0.5 because the
-    magnitudes are matched -- proving the tri-condition does real work magnitude cannot).
+    magnitudes are matched, proving the tri-condition does real work magnitude cannot).
 
 Deterministic: all randomness is seeded from SEED via numpy.random.default_rng.
 """
@@ -50,7 +50,7 @@ def is_offline_mode():
 
 
 def gateway_status():
-    """Record (honestly) whether the real gateway is reachable. The QSLM METHOD
+    """Record whether the real gateway is reachable. The QSLM METHOD
     requires white-box reference weights to synthesize the quant family, so the
     controlled embedder is used BY DESIGN, not as a failure fallback."""
     try:
@@ -191,8 +191,8 @@ def main():
 
     # ---- HARD adaptive adversary: U-aligned finetune (attacks non-obviousness) ----
     # A random low-rank delta (the strawman above) is trivially rejected because it lands in
-    # a random subspace. The honest question: what if the adversary STEERS its low-rank delta
-    # into the method's own invariant subspace U? Energy-match each to a quant member.
+    # a random subspace. The next adversary steers its low-rank delta directly into the
+    # method's own invariant subspace U instead. Energy-match each to a quant member.
     rng_u = np.random.default_rng(SEED + 2)
     ua_targets = [quant_cands[i % N_QUANT]["eps"] for i in range(N_UALIGN)]
     ua_cands = [M.make_ualigned_finetune_candidate(W_ref, X, t, U, rng_u, BLOCK_SIZE, K,
@@ -241,16 +241,16 @@ def main():
 
     # ---- FAIR-BASELINE HEAD-TO-HEAD: single-signal smart detectors vs the conjunction ----
     # The energy-only baseline above is chance BY CONSTRUCTION (energies are matched), so beating
-    # it is a tautology. The honest question a reviewer asks: does the tri-condition beat the
-    # detector a competent engineer would ACTUALLY build? Without the family, the two strongest
+    # it is a tautology. The real test is whether the tri-condition beats the
+    # detector a competent engineer would ACTUALLY build. Without the family, the two strongest
     # magnitude-free signals are (a) a residual effective-RANK threshold and (b) a residual
     # subspace-OVERLAP-with-U threshold. Each ALONE is a reasonable detector (not a strawman): the
     # rank test already rejects the random & U-aligned LoRA adversaries; the overlap test already
     # rejects the random & dense adversaries. QSLM's inventive step is that NEITHER single signal
-    # suffices -- only their CONJUNCTION. We prove it by adding a SECOND realistic adversary that
-    # defeats the rank test: a DENSE full-rank finetune (real full finetuning, NOT LoRA),
+    # suffices: only their CONJUNCTION does. We prove it by adding a SECOND realistic adversary
+    # that defeats the rank test: a DENSE full-rank finetune (real full finetuning, NOT LoRA),
     # energy-matched. Its residual is high-rank (fools the rank detector) but random-subspace
-    # (low overlap with U), so only the tri-condition -- requiring BOTH -- rejects it.
+    # (low overlap with U), so only the tri-condition (requiring BOTH) rejects it.
     D_FULL = min(EMB.D_OUT, EMB.D_HIDDEN)
     rng_fr = np.random.default_rng(SEED + 3)
     fr_targets = [quant_cands[i % N_QUANT]["eps"] for i in range(N_FULLRANK)]
