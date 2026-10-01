@@ -124,6 +124,48 @@ edges, which are the off-attribute distractors, because the identity-conflated p
 higher dedup confidence than the distractors it is measured against. Neither baseline is
 handicapped; each is given its genuine signal and misranks on it.
 
+## Prior art
+
+BD-APP sits between two established lines of work, and reuses more than it introduces.
+
+**Closest prior work**
+
+- PoisonedRAG (Zou et al., 2024, [arXiv:2402.07867](https://arxiv.org/abs/2402.07867)):
+  establishes "poisoning" as the term of art for steering a RAG answer through its retrieved
+  evidence. Its threat model is an *external adversary injecting* malicious passages; BD-APP's
+  is an *internal, legitimate-looking* entity-resolution error, and BD-APP predicts and repairs
+  rather than attacks.
+- Lost in the Middle (Liu et al., 2023, [arXiv:2307.03172](https://arxiv.org/abs/2307.03172)):
+  shows that a fixed context budget, and position within it, governs which retrieved evidence a
+  model actually uses. That budget-eviction dynamic is what `dtok` measures.
+- GraphRAG (Edge et al., 2024, [arXiv:2404.16130](https://arxiv.org/abs/2404.16130)): defines
+  the entity-graph-plus-community pipeline BD-APP's threat model assumes.
+- Isotonic regression / PAVA: the standard monotone score-to-probability calibrator
+  (Niculescu-Mizil & Caruana, 2005; also `sklearn.isotonic.IsotonicRegression`).
+
+**What is reused, and not claimed as new**
+
+Poisoning as a framing for RAG manipulation; the fixed-token-budget mechanism; GraphRAG's own
+pipeline; isotonic/PAVA calibration, reimplemented here in plain numpy only to keep the
+dependency surface at zero; and budgeted edge-removal, which is ordinary graph theory. None of
+these is original to this work, and no mathematical novelty is claimed for any of them.
+
+**What this combination does differently**
+
+Scoring an entity-merge by *diffing two budget-truncated context assemblies* (the real merged
+graph against a counterfactual split) and counting the on-entity, query-relevant tokens the
+merge evicts (`dtok`), then folding that displacement together with a directional-contradiction
+proxy (`kappa`) into one generator-free risk score `PR(M)`, and using that same per-edge weight
+to drive repair under a fixed edit budget. The head-to-head against centrality-cut and
+dedup-confidence-cut baselines on the same corpus is in [Measured results](#measured-results-this-repo).
+
+**Search coverage.** A search of arXiv, GitHub and PyPI did not surface a paper, package or
+public repository implementing this specific displacement-times-contradiction signal. That
+negative result is stronger on the academic side than the code side: GitHub's code search
+required authentication and third-party code-search mirrors rate-limited every attempt, so the
+code half rests mainly on repository-level search. Absence of a match in those sources is not
+proof that none exists.
+
 ## Scope and limitations
 
 - Controlled synthetic corpus: the corpus, budgets, merges, and foreign chunks are constructed
