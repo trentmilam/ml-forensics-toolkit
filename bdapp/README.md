@@ -1,79 +1,41 @@
 # BD-APP: budget-displacement poisoning predictor and repair
 
-**Status: research prototype**, validated on a controlled synthetic corpus (see "Scope and
-limitations" below), not yet run against a production GraphRAG pipeline.
+Research prototype. Controlled synthetic corpus. Not run against a production GraphRAG pipeline.
 
-GraphRAG systems answer questions by first organizing source documents into a knowledge graph,
-then retrieving from it. A common failure mode is an entity-merge: the system wrongly collapses
-two different real-world entities, for example two different people with the same name, into
-one node. Not every entity-merge matters. BD-APP predicts which ones will actually poison an
-answer (corrupt it with the wrong entity's information), rather than just which ones look risky
-by graph centrality or dedup confidence, and repairs the graph under a fixed edit budget.
+Predicts which GraphRAG entity-merge (two different entities collapsed into one node) will poison an answer. Generator-free: no language model in the prediction. Scores by token-budget displacement, not graph centrality or dedup confidence. Repairs the graph under a fixed edit budget.
 
-In notation: BD-APP is a generator-free method (it never calls a language model to make its
-prediction) to predict which GraphRAG false-merge will poison answers, and to repair the graph
-under a fixed edit budget, by measuring token-budget displacement instead of graph centrality or
-dedup confidence.
+## Install and run
 
-## Installation / prerequisites
-
-Tested on Python 3.12. From the repo root:
+Python 3.12, from the repo root:
 
 ```
 pip install -r requirements.txt
 python bdapp/run_experiment.py
 ```
 
-Section (3) additionally probes a local OpenAI-compatible gateway at `127.0.0.1:8000`
-(informational only, see "Scope and limitations" below; it never gates the PASS/FAIL verdict).
-Set `RAGTOOLKIT_OFFLINE=1` (or pass `--offline`) to skip the probe entirely for a
-deterministic, network-free run; override the probed URL with `BDAPP_GATEWAY_BASE`.
+- Section (3) probes a local OpenAI-compatible gateway at `127.0.0.1:8000` (informational, never gates PASS/FAIL).
+- Offline: `RAGTOOLKIT_OFFLINE=1` or `--offline`.
+- Gateway URL override: `BDAPP_GATEWAY_BASE`.
 
 ## How it works
 
-BD-APP scores the poisoning risk of a false-merge `M` in a graph-based retrieval corpus that
-assembles retrieved chunks into a fixed-token-budget context, in four steps plus a repair pass:
+Scores a false-merge `M` in a corpus that assembles retrieved chunks into a fixed-token-budget context.
 
-**1. Assemble the context twice per affected seed.** For each seed `e` that touches `M`, build
-the truncated context under the seed's fixed token budget once with `M` present, and once for
-the counterfactual split of `M`.
-
-**2. Measure displacement.** `dtok(e, M)` is the number of on-entity, query-relevant tokens that
-are present in the split-`M` truncated context but get evicted in the with-`M` truncated
-context by foreign content routed through `M`.
-
-**3. Measure contradiction.** A deterministic directional-contradiction proxy `kappa(e, M)`
-flags whether the foreign content actually conflicts with the query-relevant answer.
-
-**4. Score poisoning risk** as `PR(M) = Σ_e s(e) · r(e→M) · dtok(e, M) · κ(e, M)`, using a
-query-log-free seeding weight `s(e)` and an expansion-reach weight `r(e→M)`, without invoking
-any generative model.
-
-**5. Repair.** Remove the `K` foreign-routing edges with the highest per-unit load-bearing
-displacement (`dtok·κ`), a displacement-weighted min-cut, within a fixed edit budget `K`.
-
-This beats the obvious baselines because poisoning damage is driven by budget displacement, not
-by where a merge sits in the graph or how confident a dedup system is about it. A peripheral
-merge that routes heavy, identity-conflated content can evict the load-bearing on-entity chunk
-and flip the answer, while a highly-central merge that routes light content flips nothing. `PR`
-captures this; a centrality baseline inverts the true ranking, and a dedup-confidence baseline
-trusts the very identity-conflated edges that do the damage.
+1. Assemble the context twice per affected seed `e`: with `M`, and with the counterfactual split of `M`.
+2. Displacement: `dtok(e, M)` = on-entity, query-relevant tokens present in the split context but evicted in the with-`M` context by foreign content.
+3. Contradiction: deterministic proxy `kappa(e, M)` flags whether the foreign content conflicts with the answer.
+4. Score: `PR(M) = Σ_e s(e) · r(e→M) · dtok(e, M) · κ(e, M)`, with query-log-free seeding weight `s(e)` and expansion-reach weight `r(e→M)`.
+5. Repair: remove the `K` foreign-routing edges with the highest `dtok·κ` per unit (displacement-weighted min-cut).
 
 ## Measured results (this repo)
 
 Run: `python bdapp/run_experiment.py`
 
-**Sample-size note** (applies to every table in this section): these numbers come from 3
-injected merges over 12 poisoned seeds, with a repair edit budget of `K = 6`. The three-decimal
-precision below (e.g. `AUC = 1.000`, `33.3 %`) is the experiment's raw printed output, not a
-claim of statistical confidence at this sample size. Read every number here as directional
-evidence that the effect exists, not a stable estimate of its exact magnitude.
+Sample: 3 injected merges, 12 poisoned seeds, repair budget `K = 6`. Three-decimal values are raw printed output. Directional evidence only.
 
-### (1) Centrality inversion (measured)
+### (1) Centrality inversion
 
-Centrality here is scored on the merge's actual injection/seed sites (mean degree-centrality
-over the poisoned seeds), the sites a realistic centrality defence would guard, not a decorative
-anchor label.
+Centrality: mean degree-centrality over the poisoned seed sites.
 
 | merge          | PR (predict) | degree centrality (seed sites) | ground-truth harm (flip rate) |
 |----------------|-------------:|-------------------------------:|------------------------------:|
@@ -81,32 +43,19 @@ anchor label.
 | M_central      | 0.000        | 0.0769                         | 0.0 %                         |
 | M_distract     | 0.000        | 0.0545                         | 0.0 %                         |
 
-- PR ranking: `M_peripheral > M_central`, matching ground truth.
-- Centrality ranking: `M_central > M_distract > M_peripheral`, which is inverted: the harmful
-  merge sits on the lowest-centrality (leaf) seeds while the harmless one sits on the
-  highest-centrality (hub) seeds.
-- Ground-truth harm (independently measured answer-flip rate, from a label-free plurality
-  reader, see below) agrees with PR, not centrality.
-- The 75 % (not 100 %) harm is itself the causal control: the same merge with the same
-  contradictory foreign chunk flips only the 9 tight-budget seeds and not the 3 roomy-budget
-  seeds, where the correct evidence survives and out-votes the poison. That isolates budget
-  displacement, not merge identity, as the driver.
-- `M_distract` evicts on-entity tokens (`dtok > 0`) but is non-contradictory on the queried
-  attribute (`κ = 0`), so it flips nothing, showing `PR` needs both displacement and
-  contradiction, and that a displacement-only signal would over-predict.
+- PR ranking: `M_peripheral > M_central`, matches ground truth.
+- Centrality ranking: `M_central > M_distract > M_peripheral`, inverted.
+- Ground truth (label-free plurality reader) agrees with PR.
+- 75 % harm: the same merge flips the 9 tight-budget seeds and not the 3 roomy-budget seeds.
+- `M_distract`: `dtok > 0`, `κ = 0`, flips nothing.
 
-### (1b) Calibration `PR → P(flip)` (measured)
+### (1b) Calibration `PR → P(flip)`
 
-Isotonic (PAVA) fit over 20 capped (query, M) cases: `P(flip | d=0) = 0.000`,
-`P(flip | d=max) = 1.000`, ranking AUC = 1.000, mean per-case score
-`d = 1.600` for flipped vs `0.000` for non-flipped.
+Isotonic (PAVA) fit over 20 capped (query, M) cases: `P(flip | d=0) = 0.000`, `P(flip | d=max) = 1.000`, ranking AUC = 1.000, mean per-case score `d = 1.600` for flipped vs `0.000` for non-flipped.
 
-The perfect separation is a property of this controlled corpus, not of the labelling: the
-ground-truth reader is now independent of the predictor (see "Scope and limitations"). On a real corpus,
-out-of-threat-model flips (e.g. corroboration-stripping that lets a higher-relevance poison win
-a co-location vote, a case `dtok` scores 0) would pull the AUC below 1.
+On a real corpus, out-of-threat-model flips (corroboration-stripping, where `dtok` scores 0) would pull AUC below 1.
 
-### (2) Repair at equal edit budget `K = 6` edges (measured)
+### (2) Repair at equal edit budget `K = 6` edges
 
 | strategy               | residual flip rate | on-entity precision |
 |------------------------|-------------------:|--------------------:|
@@ -115,115 +64,43 @@ a co-location vote, a case `dtok` scores 0) would pull the AUC below 1.
 | centrality-cut         | 100.0 %            | 0.000               |
 | dedup-confidence-cut   | 100.0 %            | 0.000               |
 
-The displacement-weighted min-cut spends the same budget but reduces the answer-flip rate from
-100 % to 33 % and raises on-entity truncated-context precision, while both baselines spend their
-budget on harmless edges and leave every flip in place. The baseline failures are emergent, not
-constructed: centrality-cut spends its budget on the highest-centrality (hub) seeds, which
-happen to carry the harmless light merge, and dedup-cut spends its budget on the lowest-Jaccard
-edges, which are the off-attribute distractors, because the identity-conflated poison scores
-higher dedup confidence than the distractors it is measured against. Neither baseline is
-handicapped; each is given its genuine signal and misranks on it.
+- Displacement-cut: flip rate 100 % to 33 %.
 
 ## Prior art
 
-BD-APP sits between two established lines of work, and reuses more than it introduces.
+Closest prior work:
 
-**Closest prior work**
+- PoisonedRAG (Zou et al., 2024, [arXiv:2402.07867](https://arxiv.org/abs/2402.07867)): external adversary injecting passages. BD-APP: internal entity-resolution error, predicted and repaired.
+- Lost in the Middle (Liu et al., 2023, [arXiv:2307.03172](https://arxiv.org/abs/2307.03172)): context budget and position govern which evidence a model uses. `dtok` measures that eviction.
+- GraphRAG (Edge et al., 2024, [arXiv:2404.16130](https://arxiv.org/abs/2404.16130)): the entity-graph-plus-community pipeline assumed here.
+- Isotonic regression / PAVA: monotone score-to-probability calibrator (Niculescu-Mizil & Caruana, 2005; also `sklearn.isotonic.IsotonicRegression`).
 
-- PoisonedRAG (Zou et al., 2024, [arXiv:2402.07867](https://arxiv.org/abs/2402.07867)):
-  establishes "poisoning" as the term of art for steering a RAG answer through its retrieved
-  evidence. Its threat model is an *external adversary injecting* malicious passages; BD-APP's
-  is an *internal, legitimate-looking* entity-resolution error, and BD-APP predicts and repairs
-  rather than attacks.
-- Lost in the Middle (Liu et al., 2023, [arXiv:2307.03172](https://arxiv.org/abs/2307.03172)):
-  shows that a fixed context budget, and position within it, governs which retrieved evidence a
-  model actually uses. That budget-eviction dynamic is what `dtok` measures.
-- GraphRAG (Edge et al., 2024, [arXiv:2404.16130](https://arxiv.org/abs/2404.16130)): defines
-  the entity-graph-plus-community pipeline BD-APP's threat model assumes.
-- Isotonic regression / PAVA: the standard monotone score-to-probability calibrator
-  (Niculescu-Mizil & Caruana, 2005; also `sklearn.isotonic.IsotonicRegression`).
+Reused, not claimed as new: poisoning as a RAG framing, the fixed-token-budget mechanism, GraphRAG's pipeline, isotonic/PAVA calibration (plain numpy), budgeted edge-removal.
 
-**What is reused, and not claimed as new**
+Combination: diff two budget-truncated context assemblies (merged graph vs counterfactual split), count the on-entity tokens evicted (`dtok`), combine with `kappa` into one generator-free score `PR(M)`, use the same per-edge weight for repair. Baselines: [Measured results](#measured-results-this-repo).
 
-Poisoning as a framing for RAG manipulation; the fixed-token-budget mechanism; GraphRAG's own
-pipeline; isotonic/PAVA calibration, reimplemented here in plain numpy only to keep the
-dependency surface at zero; and budgeted edge-removal, which is ordinary graph theory. None of
-these is original to this work, and no mathematical novelty is claimed for any of them.
-
-**What this combination does differently**
-
-Scoring an entity-merge by *diffing two budget-truncated context assemblies* (the real merged
-graph against a counterfactual split) and counting the on-entity, query-relevant tokens the
-merge evicts (`dtok`), then folding that displacement together with a directional-contradiction
-proxy (`kappa`) into one generator-free risk score `PR(M)`, and using that same per-edge weight
-to drive repair under a fixed edit budget. The head-to-head against centrality-cut and
-dedup-confidence-cut baselines on the same corpus is in [Measured results](#measured-results-this-repo).
-
-**Search coverage.** A search of arXiv, GitHub and PyPI did not surface a paper, package or
-public repository implementing this specific displacement-times-contradiction signal. That
-negative result is stronger on the academic side than the code side: GitHub's code search
-required authentication and third-party code-search mirrors rate-limited every attempt, so the
-code half rests mainly on repository-level search. Absence of a match in those sources is not
-proof that none exists.
+Search coverage: arXiv, GitHub, PyPI. No implementation of this signal found. Code search limited to repository-level.
 
 ## Scope and limitations
 
-- Controlled synthetic corpus: the corpus, budgets, merges, and foreign chunks are constructed
-  to exhibit the budget-displacement / centrality-inversion regime. The numbers above are
-  measured on that controlled corpus, not on production data. Real corpora would show a noisier
-  `PR→flip` relation than the perfect separation (AUC = 1.0) seen here.
-- The ground truth does not reuse the predictor (no label leakage). The fallback reader is a
-  label-free plurality reader: among the status chunks that name the seed in the assembled
-  context, it returns the value with the most support, ties broken toward higher retrieval
-  relevance. It never consults the hidden `authentic` flag nor the true native value, verified by
-  a discriminating probe: with the native chunk absent but two corroborators present, it still
-  returns the correct value by majority even though the poison out-ranks them on relevance. So a
-  "flip" is decided by a vote over whatever survives the budget, an event computed independently
-  of the predictor's `dtok`/`κ`. (An earlier version did leak: it preferred the `authentic` chunk
-  whenever present, which made the label a restatement of "was the authentic chunk evicted", the
-  same event `dtok` measures. That has been removed.)
-- What is genuinely measured vs. assumed: `dtok` is measured by running the budgeted assembler
-  twice and diffing the two truncated contexts; the ground-truth harm is measured by the
-  independent reader above; centrality is the real graph degree of the poisoned seed sites (not a
-  decorative anchor); dedup confidence is the real native/foreign token Jaccard. The naive
-  baselines genuinely fail on their genuine signals (inverted ranking; 100 % residual flips).
-- Threat model and known blind spot: a counted "flip" requires the correct value to lose the
-  plurality, which in this corpus happens when the correct evidence is evicted from the budget
-  (displacement) and a contradictory foreign value survives. Mere co-location of correct and
-  contradictory chunks does not flip, because corroboration keeps the correct value's majority, a
-  principled, label-free reason, not a thesis-favouring rule. BD-APP concerns budget displacement
-  specifically, and it therefore misses a different attack, corroboration-stripping, where the
-  poison out-ranks a thinned-out correct set in a co-location vote. `dtok` scores that 0, so the
-  predictor would not flag it. A real corpus would contain such cases and the AUC would fall
-  below 1.
-- Generator source (real-LLM loop closed, measured 2026-07-04): the graded tables above use the
-  deterministic label-free reader so the headline numbers are reproducible offline and
-  independent of live-model variance. Section (3) of the experiment additionally closes the loop
-  against the real local gateway generator at `temperature=0` and reports a measured
-  head-to-head. These numbers are anecdotal to the one gateway/model configuration this was run
-  against on the date below. Unlike every other number in this README, they are not a
-  reproducible claim, and a different model or server can (and did, across re-runs) produce a
-  different outcome:
+- Controlled synthetic corpus. Real corpora would show a noisier `PR→flip` relation than AUC = 1.0.
+- Corpus, budgets, merges and foreign chunks are constructed to exhibit the regime.
+- Ground truth does not reuse the predictor. The fallback reader is a label-free plurality reader: among status chunks naming the seed, it returns the value with the most support, ties broken toward higher retrieval relevance. It never reads the hidden `authentic` flag or the true native value.
+- Probe: native chunk absent, two corroborators present, reader still returns the correct value.
+- An earlier version leaked the label (it preferred the `authentic` chunk). Removed.
+- `dtok`: two budgeted assemblies, diffed. Harm: independent reader. Centrality: real graph degree of the poisoned seed sites. Dedup confidence: real native/foreign token Jaccard.
+- Known blind spot: corroboration-stripping, where the poison out-ranks a thinned-out correct set in a co-location vote. `dtok` scores it 0.
+- Generator source (real-LLM loop, measured 2026-07-04): graded tables use the deterministic reader. Section (3) also runs the real local gateway generator at `temperature=0`. Anecdotal: one gateway/model configuration. Not reproducible; re-runs differed.
 
   | integration (same endpoint, same contexts)         | usable value tokens | flip loop |
   |----------------------------------------------------|--------------------:|-----------|
   | naive, default persona, `max_tokens=6`             | 0 / 6                | cannot close (empty thinking-only replies, silent fallback to oracle) |
   | corrected, thinking-off profile selected via the gateway's profile field, `mt=12` | 6 / 6 | closes: `generator_source = real-gateway`, `real_calls = 12`, `oracle_calls = 0` |
 
-  This is why earlier runs reported `generator_source = fallback-oracle` despite a live gateway:
-  the configured chat model is a thinking model whose default persona spends its whole token
-  budget on hidden reasoning and returns empty content, which the loop correctly treats as a
-  non-answer. Selecting the thinking-off profile closes the loop. The real model agrees with the
-  label-free oracle on 5 / 6 batch pairs. The one disagreement is instructive: on
-  `M_central` seed 1 the real model flips on a co-located contradiction (`dtok = 0`, `κ = 1`, the
-  correct value is corroborated but not evicted) that the budget-displacement predictor does not
-  flag. That is a live instance of the documented co-location / corroboration blind spot (see
-  "Threat model and known blind spot"), not a failure of the displacement claim; the predictor
-  concerns budget displacement specifically. `kappa_source = lexical-fallback`: the gateway's
-  embeddings endpoint returned 404 in this run, so `κ` uses the deterministic lexical proxy. The
-  experiment is fully reproducible offline (graded tables deterministic given
-  `SEED = 20260703`); the real-LLM loop is optional and skipped with a documented route when
-  the gateway is unreachable.
+  - Earlier runs reported `generator_source = fallback-oracle` despite a live gateway.
+  - Real model agrees with the oracle on 5 / 6 batch pairs. The disagreement: `M_central` seed 1, where the real model flips on a co-located contradiction (`dtok = 0`, `κ = 1`).
+  - `kappa_source = lexical-fallback`: the gateway's embeddings endpoint returned 404.
+  - Graded tables deterministic given `SEED = 20260703`. The real-LLM loop is optional and skipped when the gateway is unreachable.
 
 ## Files
 
